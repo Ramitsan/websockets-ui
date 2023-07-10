@@ -31,10 +31,62 @@ const handlers = {
       errorText: ''
     }
     return result;
+  },
+
+  create_room: async (data: IRegRequest) => {
+    console.log(data);
+    const result: IRegResponce = {
+      name: data.name,
+      index: 0,
+      error: false,
+      errorText: ''
+    }
+
+    wss.clients.forEach(it => {
+      it.send(JSON.stringify({
+        type: "update_room",
+        data: JSON.stringify([
+          {
+            roomId: 111,
+            roomUsers:
+              [
+                {
+                  name: '222',
+                  index: 333,
+                }
+              ],
+          },
+        ]),
+        id: 0,
+      }));
+    })
+    return result;
+  },
+
+  add_user_to_room: async (data: IRegRequest) => {
+    console.log(data);
+    const result: IRegResponce = {
+      name: data.name,
+      index: 0,
+      error: false,
+      errorText: ''
+    }
+
+    wss.clients.forEach(it => {
+      it.send(JSON.stringify({
+        type: "create_game", //send for both players in the room
+        data: JSON.stringify(
+          {
+            idGame: 1,
+            idPlayer: 2,
+          }),
+        id: 0,
+      }));
+    })
   }
 }
 
-wss.on('connection',  (ws) => {
+wss.on('connection', (ws) => {
   ws.on('error', console.error);
 
   ws.on('message', async (data) => {
@@ -42,10 +94,10 @@ wss.on('connection',  (ws) => {
     try {
       const parsedData: IServerMessage<any> = JSON.parse(data.toString());
       const handler = handlers[parsedData.type as keyof typeof handlers];
-      if(handler) {
+      if (handler) {
         const result = await handler(parsedData.data);
         const response: IServerMessage<string> = {
-          type: 'reg',
+          type: parsedData.type,
           id: parsedData.id,
           data: JSON.stringify(result)
         }
@@ -54,7 +106,7 @@ wss.on('connection',  (ws) => {
         console.log('unknown request type');
       }
     }
-    catch(err) {
+    catch (err) {
       console.log('server error');
     }
     // messages.push(data.toString());
