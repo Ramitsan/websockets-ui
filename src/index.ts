@@ -1,4 +1,5 @@
-import { WebSocketServer } from 'ws';
+import { WebSocket, WebSocketServer } from 'ws';
+import { Game, Player } from './game';
 
 const wss = new WebSocketServer({ port: 3000 });
 const messages: Array<string> = [];
@@ -21,6 +22,8 @@ interface IServerMessage<T> {
   id: number
 }
 
+const games: Array<Game> = [];
+
 const handlers = {
   reg: async (data: IRegRequest) => {
     console.log(data);
@@ -41,18 +44,21 @@ const handlers = {
       error: false,
       errorText: ''
     }
-
+    const game = new Game();
+    game.players.push(new Player());
+    games.push(game);
     wss.clients.forEach(it => {
       it.send(JSON.stringify({
         type: "update_room",
         data: JSON.stringify([
           {
-            roomId: 111,
+            // roomId: games.length - 1,
+            roomId: 0,
             roomUsers:
               [
                 {
                   name: '222',
-                  index: 333,
+                  index: 0,
                 }
               ],
           },
@@ -63,7 +69,8 @@ const handlers = {
     return result;
   },
 
-  add_user_to_room: async (data: IRegRequest) => {
+  add_user_to_room: async (_data: any, ws: WebSocket) => {
+    const data = JSON.parse(_data);
     console.log(data);
     const result: IRegResponce = {
       name: data.name,
@@ -71,18 +78,41 @@ const handlers = {
       error: false,
       errorText: ''
     }
-
-    wss.clients.forEach(it => {
+    const game = games[data.indexRoom];
+    game.players.push(new Player());
+    Array.from(wss.clients.values()).forEach((it, index) => {
       it.send(JSON.stringify({
         type: "create_game", //send for both players in the room
         data: JSON.stringify(
           {
-            idGame: 1,
-            idPlayer: 2,
+            idGame: data.indexRoom,
+            idPlayer: index,
           }),
         id: 0,
       }));
     })
+  },
+
+  add_ships: async (_data: string) => {
+    const data: {
+      gameId: number,
+      indexPlayer: number,
+      ships: any
+    } = JSON.parse(_data);
+
+    games[data.gameId].players[data.indexPlayer].ships = data.ships;
+    if(games[data.gameId].players[0].ships && games[data.gameId].players[1].ships) {
+      wss.clients.forEach(it => {
+        it.send(JSON.stringify({
+          type: "start_game", 
+          data: JSON.stringify(
+            {
+              
+            }),
+          id: 0,
+        }));
+      })
+    }
   }
 }
 
@@ -95,7 +125,7 @@ wss.on('connection', (ws) => {
       const parsedData: IServerMessage<any> = JSON.parse(data.toString());
       const handler = handlers[parsedData.type as keyof typeof handlers];
       if (handler) {
-        const result = await handler(parsedData.data);
+        const result = await handler(parsedData.data, ws);
         const response: IServerMessage<string> = {
           type: parsedData.type,
           id: parsedData.id,
@@ -107,7 +137,7 @@ wss.on('connection', (ws) => {
       }
     }
     catch (err) {
-      console.log('server error');
+      console.log('server error', err);
     }
     // messages.push(data.toString());
     // wss.clients.forEach(it => {
