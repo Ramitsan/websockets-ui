@@ -100,7 +100,7 @@ const handlers = {
       ships: any
     } = JSON.parse(_data);
 
-    games[data.gameId].players[data.indexPlayer].ships = data.ships;
+    games[data.gameId].players[data.indexPlayer].addShips(data.ships);
     if(games[data.gameId].players[0].ships && games[data.gameId].players[1].ships) {
       wss.clients.forEach(it => {
         it.send(JSON.stringify({
@@ -113,7 +113,39 @@ const handlers = {
         }));
       })
     }
-  }
+  },
+
+  attack: async (_data: string) => {
+    const data: {
+      gameId: number,
+      x: number,
+      y: number,
+      indexPlayer: number, /* id of the player in the current game */
+    } = JSON.parse(_data);
+
+    const game = games[data.gameId];
+    const status = game.attack({
+      x: data.x, 
+      y: data.y
+    }, data.indexPlayer);
+
+    wss.clients.forEach(it => {
+      it.send(JSON.stringify({
+        type: "attack", 
+        data: JSON.stringify(
+          {
+            position:
+            {
+              x: data.x,
+              y: data.y,
+            },
+            currentPlayer: (data.indexPlayer + 1) % 2, /* id of the player in the current game */
+            status: status,
+        }),
+        id: 0,
+      }));
+    })
+  }  
 }
 
 wss.on('connection', (ws) => {
