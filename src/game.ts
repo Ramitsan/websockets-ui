@@ -25,6 +25,10 @@ export class Player {
   send(data: string) {
     this.user.send(data);
   }
+
+  checkWin() {
+    return !this.ships.find(it => it.state.find(jt => jt == false) != null);    
+  }
 }
 
 export class Ship {
@@ -71,5 +75,15 @@ export class Game {
     }
     this.currentPlayerIndex = (this.currentPlayerIndex + 1) % 2;
     return 'miss';   
+  }
+
+  checkWin() {
+    if(this.players[0].checkWin()) {
+      return 1;
+    } else if(this.players[1].checkWin()) {
+      return 0;
+    } else {
+      return null;
+    }
   }
 }

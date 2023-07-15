@@ -187,6 +187,7 @@ const handlers = {
       y: data.y
     }, data.indexPlayer);
 
+    const winner = game.checkWin();
     wss.clients.forEach(it => {
       it.send(JSON.stringify({
         type: "attack",
@@ -211,6 +212,18 @@ const handlers = {
         ),     
         id: 0,
       }))
+   
+      if(winner !== null) {
+        it.send(JSON.stringify({
+          type: "finish",
+          data: JSON.stringify(
+            {
+              winPlayer: winner,
+            },
+          ),     
+          id: 0,
+        }))
+      }
     })
   }
 }
