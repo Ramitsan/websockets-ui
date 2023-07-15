@@ -44,6 +44,7 @@ const games: Array<Game> = [];
 const users: Array<User> = [];
 const sendGames = (ws: WebSocket) => {
   const result = {
+    id: 0,
     type: "update_room",
     data: JSON.stringify(
       games.map((_game, gameIndex) => {
@@ -111,34 +112,8 @@ const handlers = {
     game.players.push(new Player(user));
     games.push(game);
     wss.clients.forEach(it => {
-      it.send(JSON.stringify({
-        type: "update_room",
-        data: JSON.stringify(
-          games.map((_game, gameIndex) => {
-            return {
-              roomId: gameIndex,
-              roomUsers: _game.players.map((player, playerIndex) => ({
-                name: player.user.name,
-                index: playerIndex
-              }))
-            }
-          })
-          // [
-          // {
-          //   roomId: games.length - 1,
-          //   roomUsers:
-          //     [
-          //       {
-          //         name: user.name,
-          //         index: userIndex,
-          //       }
-          //     ],
-          // },
-        // ]
-        ),
-        id: 0,
-      }));
-    })
+      sendGames(it);
+      });
   },
 
   add_user_to_room: async (_data: any, ws: WebSocket) => {
@@ -193,6 +168,9 @@ const handlers = {
     } = JSON.parse(_data);
 
     const game = games[data.gameId];
+    if(data.indexPlayer !== game.currentPlayerIndex) {
+      return '';
+    }
     const status = game.attack({
       x: data.x,
       y: data.y
@@ -208,7 +186,7 @@ const handlers = {
               x: data.x,
               y: data.y,
             },
-            currentPlayer: (data.indexPlayer + 1) % 2, /* id of the player in the current game */
+            currentPlayer: (data.indexPlayer) % 2, /* id of the player in the current game */
             status: status,
           }),
         id: 0,
