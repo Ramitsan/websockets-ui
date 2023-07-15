@@ -22,18 +22,62 @@ interface IServerMessage<T> {
   id: number
 }
 
+class User {
+  name: string;
+  password: string;
+  private connection: WebSocket;
+
+  constructor(name: string, password: string) {
+    this.name = name;
+    this.password = password;
+  }
+
+  send(data: string) {
+    this.connection.send(data);
+  }
+  updateConnection(connection: WebSocket) {
+    this.connection = connection;
+  }
+}
+
 const games: Array<Game> = [];
+const users: Array<User> = [];
 
 const handlers = {
-  reg: async (data: IRegRequest) => {
+  reg: async (data: IRegRequest, ws: WebSocket) => {
     console.log(data);
-    const result: IRegResponce = {
-      name: data.name,
-      index: 0,
-      error: false,
-      errorText: ''
+
+    const userRegIndex = users.findIndex(it => it.name == data.name);
+    const userReg = users[userRegIndex];
+    if (!userReg) {
+      const user = new User(data.name, data.password);
+      user.updateConnection(ws);
+      users.push(user);
+      const result: IRegResponce = {
+        name: data.name,
+        index: users.length - 1,
+        error: false,
+        errorText: ''
+      }
+      return result;
+    } else if (userReg.password == data.password) {
+      userReg.updateConnection(ws);
+      const result: IRegResponce = {
+        name: data.name,
+        index: userRegIndex,
+        error: false,
+        errorText: ''
+      }
+      return result;
+    } else {
+      const result: IRegResponce = {
+        name: data.name,
+        index: -1,
+        error: true,
+        errorText: 'Invalid password'
+      }
+      return result;
     }
-    return result;
   },
 
   create_room: async (data: IRegRequest) => {
@@ -101,13 +145,13 @@ const handlers = {
     } = JSON.parse(_data);
 
     games[data.gameId].players[data.indexPlayer].addShips(data.ships);
-    if(games[data.gameId].players[0].ships && games[data.gameId].players[1].ships) {
+    if (games[data.gameId].players[0].ships && games[data.gameId].players[1].ships) {
       wss.clients.forEach(it => {
         it.send(JSON.stringify({
-          type: "start_game", 
+          type: "start_game",
           data: JSON.stringify(
             {
-              
+
             }),
           id: 0,
         }));
@@ -125,13 +169,13 @@ const handlers = {
 
     const game = games[data.gameId];
     const status = game.attack({
-      x: data.x, 
+      x: data.x,
       y: data.y
     }, data.indexPlayer);
 
     wss.clients.forEach(it => {
       it.send(JSON.stringify({
-        type: "attack", 
+        type: "attack",
         data: JSON.stringify(
           {
             position:
@@ -141,11 +185,11 @@ const handlers = {
             },
             currentPlayer: (data.indexPlayer + 1) % 2, /* id of the player in the current game */
             status: status,
-        }),
+          }),
         id: 0,
       }));
     })
-  }  
+  }
 }
 
 wss.on('connection', (ws) => {
