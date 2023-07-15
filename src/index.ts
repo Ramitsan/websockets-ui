@@ -55,11 +55,13 @@ const sendGames = (ws: WebSocket) => {
             index: playerIndex
           }))
         }
-      }))};
-      console.log(result);
+      }))
+  };
+  console.log(result);
 
   ws.send(JSON.stringify(result
-  ))}
+  ))
+}
 
 const handlers = {
   reg: async (_data: string, ws: WebSocket) => {
@@ -106,14 +108,14 @@ const handlers = {
     console.log(data);
     const userIndex = users.findIndex(it => it.connection == ws);
     const user = users[userIndex];
-    if(!user) return;
+    if (!user) return;
 
     const game = new Game();
     game.players.push(new Player(user));
     games.push(game);
     wss.clients.forEach(it => {
       sendGames(it);
-      });
+    });
   },
 
   add_user_to_room: async (_data: any, ws: WebSocket) => {
@@ -121,7 +123,7 @@ const handlers = {
     console.log(data);
     const userIndex = users.findIndex(it => it.connection == ws);
     const user = users[userIndex];
-    
+
     const game = games[data.indexRoom];
     game.players.push(new Player(user));
     game.players.forEach((it, index) => {
@@ -155,6 +157,15 @@ const handlers = {
             }),
           id: 0,
         }));
+        it.send(JSON.stringify({
+          type: "turn",
+          data: JSON.stringify(
+            {
+              currentPlayer: 0,
+            },
+          ),     
+          id: 0,
+        }))
       })
     }
   },
@@ -168,7 +179,7 @@ const handlers = {
     } = JSON.parse(_data);
 
     const game = games[data.gameId];
-    if(data.indexPlayer !== game.currentPlayerIndex) {
+    if (data.indexPlayer !== game.currentPlayerIndex) {
       return '';
     }
     const status = game.attack({
@@ -191,6 +202,15 @@ const handlers = {
           }),
         id: 0,
       }));
+      it.send(JSON.stringify({
+        type: "turn",
+        data: JSON.stringify(
+          {
+            currentPlayer: game.currentPlayerIndex,
+          },
+        ),     
+        id: 0,
+      }))
     })
   }
 }
