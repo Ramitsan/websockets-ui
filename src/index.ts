@@ -22,10 +22,10 @@ interface IServerMessage<T> {
   id: number
 }
 
-class User {
+export class User {
   name: string;
   password: string;
-  private connection: WebSocket;
+  connection: WebSocket;
 
   constructor(name: string, password: string) {
     this.name = name;
@@ -42,15 +42,34 @@ class User {
 
 const games: Array<Game> = [];
 const users: Array<User> = [];
+const sendGames = (ws: WebSocket) => {
+  const result = {
+    type: "update_room",
+    data: JSON.stringify(
+      games.map((_game, gameIndex) => {
+        return {
+          roomId: gameIndex,
+          roomUsers: _game.players.map((player, playerIndex) => ({
+            name: player.user.name,
+            index: playerIndex
+          }))
+        }
+      }))};
+      console.log(result);
+
+  ws.send(JSON.stringify(result
+  ))}
 
 const handlers = {
-  reg: async (data: IRegRequest, ws: WebSocket) => {
+  reg: async (_data: string, ws: WebSocket) => {
+    const data: IRegRequest = JSON.parse(_data);
     console.log(data);
 
     const userRegIndex = users.findIndex(it => it.name == data.name);
     const userReg = users[userRegIndex];
     if (!userReg) {
       const user = new User(data.name, data.password);
+      console.log(user);
       user.updateConnection(ws);
       users.push(user);
       const result: IRegResponce = {
@@ -59,6 +78,7 @@ const handlers = {
         error: false,
         errorText: ''
       }
+      sendGames(ws);
       return result;
     } else if (userReg.password == data.password) {
       userReg.updateConnection(ws);
@@ -68,6 +88,7 @@ const handlers = {
         error: false,
         errorText: ''
       }
+      sendGames(ws);
       return result;
     } else {
       const result: IRegResponce = {
@@ -80,51 +101,55 @@ const handlers = {
     }
   },
 
-  create_room: async (data: IRegRequest) => {
+  create_room: async (data: '', ws: WebSocket) => {
     console.log(data);
-    const result: IRegResponce = {
-      name: data.name,
-      index: 0,
-      error: false,
-      errorText: ''
-    }
+    const userIndex = users.findIndex(it => it.connection == ws);
+    const user = users[userIndex];
+    if(!user) return;
+
     const game = new Game();
-    game.players.push(new Player());
+    game.players.push(new Player(user));
     games.push(game);
     wss.clients.forEach(it => {
       it.send(JSON.stringify({
         type: "update_room",
-        data: JSON.stringify([
-          {
-            // roomId: games.length - 1,
-            roomId: 0,
-            roomUsers:
-              [
-                {
-                  name: '222',
-                  index: 0,
-                }
-              ],
-          },
-        ]),
+        data: JSON.stringify(
+          games.map((_game, gameIndex) => {
+            return {
+              roomId: gameIndex,
+              roomUsers: _game.players.map((player, playerIndex) => ({
+                name: player.user.name,
+                index: playerIndex
+              }))
+            }
+          })
+          // [
+          // {
+          //   roomId: games.length - 1,
+          //   roomUsers:
+          //     [
+          //       {
+          //         name: user.name,
+          //         index: userIndex,
+          //       }
+          //     ],
+          // },
+        // ]
+        ),
         id: 0,
       }));
     })
-    return result;
   },
 
   add_user_to_room: async (_data: any, ws: WebSocket) => {
     const data = JSON.parse(_data);
     console.log(data);
-    const result: IRegResponce = {
-      name: data.name,
-      index: 0,
-      error: false,
-      errorText: ''
-    }
+    const userIndex = users.findIndex(it => it.connection == ws);
+    const user = users[userIndex];
+    
     const game = games[data.indexRoom];
-    game.players.push(new Player());
-    Array.from(wss.clients.values()).forEach((it, index) => {
+    game.players.push(new Player(user));
+    game.players.forEach((it, index) => {
       it.send(JSON.stringify({
         type: "create_game", //send for both players in the room
         data: JSON.stringify(
