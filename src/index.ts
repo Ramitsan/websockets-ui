@@ -132,6 +132,21 @@ const handlers = {
     }
   },
 
+  randomAttack: async (_data: string) => {
+    const data: {
+      gameId: number,      
+      indexPlayer: number, /* id of the player in the current game */
+    } = JSON.parse(_data);
+    const x = Math.floor(Math.random() * 10);
+    const y = Math.floor(Math.random() * 10);
+    return handlers.attack(JSON.stringify({
+      gameId: data.gameId,
+      indexPlayer: data.indexPlayer,
+      x,
+      y,
+    }))
+  },
+
   attack: async (_data: string) => {
     const data: {
       gameId: number,
@@ -150,7 +165,11 @@ const handlers = {
     }, data.indexPlayer);
 
     const winner = game.checkWin();
-    wss.clients.forEach(it => {
+    if (winner !== null) {
+      game.players[winner].user.wins += 1;
+    }
+   
+   game.players.forEach(it => {
       it.send(JSON.stringify({
         type: "attack",
         data: JSON.stringify(
@@ -187,8 +206,25 @@ const handlers = {
         }))
       }
     })
+
+    if (winner !== null) {
+    wss.clients.forEach(it => {
+      it.send(JSON.stringify({
+        type: "update_winners",
+        data: JSON.stringify(
+          users.filter(jt => jt.wins > 0).map(jt => ({
+            name: jt.name, 
+            wins: jt.wins,
+          }))        
+        ),
+        id: 0,
+    }))
+    })
+  }
   }
 }
+
+
 
 wss.on('connection', (ws) => {
   ws.on('error', console.error);
