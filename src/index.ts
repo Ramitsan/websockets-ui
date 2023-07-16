@@ -1,47 +1,14 @@
 import { WebSocket, WebSocketServer } from 'ws';
-import { Game, Player } from './game';
+import { IRegRequest, IRegResponce, IServerMessage } from './interfaces';
+import { Game } from './game';
+import { User } from './user';
+import { Player } from './player';
 
 const wss = new WebSocketServer({ port: 3000 });
 const messages: Array<string> = [];
-
-interface IRegRequest {
-  name: string,
-  password: string,
-}
-
-interface IRegResponce {
-  name: string,
-  index: number,
-  error: boolean,
-  errorText: string,
-}
-
-interface IServerMessage<T> {
-  type: string,
-  data: T,
-  id: number
-}
-
-export class User {
-  name: string;
-  password: string;
-  connection: WebSocket;
-
-  constructor(name: string, password: string) {
-    this.name = name;
-    this.password = password;
-  }
-
-  send(data: string) {
-    this.connection.send(data);
-  }
-  updateConnection(connection: WebSocket) {
-    this.connection = connection;
-  }
-}
-
 const games: Array<Game> = [];
 const users: Array<User> = [];
+
 const sendGames = (ws: WebSocket) => {
   const result = {
     id: 0,
@@ -72,14 +39,13 @@ const handlers = {
     const userReg = users[userRegIndex];
     if (!userReg) {
       const user = new User(data.name, data.password);
-      console.log(user);
       user.updateConnection(ws);
       users.push(user);
       const result: IRegResponce = {
         name: data.name,
         index: users.length - 1,
         error: false,
-        errorText: ''
+        errorText: '',
       }
       sendGames(ws);
       return result;
@@ -89,7 +55,7 @@ const handlers = {
         name: data.name,
         index: userRegIndex,
         error: false,
-        errorText: ''
+        errorText: '',
       }
       sendGames(ws);
       return result;
@@ -98,14 +64,13 @@ const handlers = {
         name: data.name,
         index: -1,
         error: true,
-        errorText: 'Invalid password'
+        errorText: 'Invalid password',
       }
       return result;
     }
   },
 
   create_room: async (data: '', ws: WebSocket) => {
-    console.log(data);
     const userIndex = users.findIndex(it => it.connection == ws);
     const user = users[userIndex];
     if (!user) return;
@@ -151,10 +116,7 @@ const handlers = {
       wss.clients.forEach(it => {
         it.send(JSON.stringify({
           type: "start_game",
-          data: JSON.stringify(
-            {
-
-            }),
+          data: JSON.stringify({}),
           id: 0,
         }));
         it.send(JSON.stringify({
@@ -251,11 +213,6 @@ wss.on('connection', (ws) => {
     catch (err) {
       console.log('server error', err);
     }
-    // messages.push(data.toString());
-    // wss.clients.forEach(it => {
-    //   it.send(JSON.stringify(messages));
-    // })
-    // ws.send(JSON.stringify('ok'));
   });
 
   ws.send(JSON.stringify(messages));
