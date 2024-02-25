@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "allowSyntheticDefaultImports": true,
+    "noImplicitAny": true,
+    "module": "CommonJS",
+    "target": "es5",
+    "allowJs": true,
+    "moduleResolution": "Node",
+    "esModuleInterop": true
+  },
+  "ts-node": {
+    "esm": true
+  },
+  "files": ["src/index.ts"]
+}
