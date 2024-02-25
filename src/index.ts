@@ -26,8 +26,7 @@ const sendGames = (ws: WebSocket) => {
   };
   console.log(result);
 
-  ws.send(JSON.stringify(result
-  ))
+  ws.send(JSON.stringify(result))
 }
 
 const handlers = {
@@ -90,6 +89,10 @@ const handlers = {
     const user = users[userIndex];
 
     const game = games[data.indexRoom];
+    const isPlayerInGame = game.players.findIndex(it => it.user.name == user.name) != -1;
+    if (isPlayerInGame) {
+      return;
+    }
     game.players.push(new Player(user));
     game.players.forEach((it, index) => {
       it.send(JSON.stringify({
@@ -125,7 +128,7 @@ const handlers = {
             {
               currentPlayer: 0,
             },
-          ),     
+          ),
           id: 0,
         }))
       })
@@ -134,7 +137,7 @@ const handlers = {
 
   randomAttack: async (_data: string) => {
     const data: {
-      gameId: number,      
+      gameId: number,
       indexPlayer: number, /* id of the player in the current game */
     } = JSON.parse(_data);
     const x = Math.floor(Math.random() * 10);
@@ -159,7 +162,7 @@ const handlers = {
     if (data.indexPlayer !== game.currentPlayerIndex) {
       return '';
     }
-    const status = game.attack({
+    const { status, ship } = game.attack({
       x: data.x,
       y: data.y
     }, data.indexPlayer);
@@ -168,8 +171,8 @@ const handlers = {
     if (winner !== null) {
       game.players[winner].user.wins += 1;
     }
-   
-   game.players.forEach(it => {
+
+    game.players.forEach(it => {
       it.send(JSON.stringify({
         type: "attack",
         data: JSON.stringify(
@@ -184,47 +187,65 @@ const handlers = {
           }),
         id: 0,
       }));
+
+      if (status == 'killed') {
+        ship.getClosest().forEach(closest => {
+          it.send(JSON.stringify({
+            type: "attack",
+            data: JSON.stringify(
+              {
+                position:
+                {
+                  x: closest.x,
+                  y: closest.y,
+                },
+                currentPlayer: (data.indexPlayer) % 2, /* id of the player in the current game */
+                status: 'miss',
+              }),
+            id: 0,
+          }));
+        })
+      }
+
       it.send(JSON.stringify({
         type: "turn",
         data: JSON.stringify(
           {
             currentPlayer: game.currentPlayerIndex,
           },
-        ),     
+        ),
         id: 0,
       }))
-   
-      if(winner !== null) {
+
+      if (winner !== null) {
         it.send(JSON.stringify({
           type: "finish",
           data: JSON.stringify(
             {
               winPlayer: winner,
             },
-          ),     
+          ),
           id: 0,
         }))
       }
     })
 
     if (winner !== null) {
-    wss.clients.forEach(it => {
-      it.send(JSON.stringify({
-        type: "update_winners",
-        data: JSON.stringify(
-          users.filter(jt => jt.wins > 0).map(jt => ({
-            name: jt.name, 
-            wins: jt.wins,
-          }))        
-        ),
-        id: 0,
-    }))
-    })
-  }
+      wss.clients.forEach(it => {
+        it.send(JSON.stringify({
+          type: "update_winners",
+          data: JSON.stringify(
+            users.filter(jt => jt.wins > 0).map(jt => ({
+              name: jt.name,
+              wins: jt.wins,
+            }))
+          ),
+          id: 0,
+        }))
+      })
+    }
   }
 }
-
-
 
 wss.on('connection', (ws) => {
   ws.on('error', console.error);
